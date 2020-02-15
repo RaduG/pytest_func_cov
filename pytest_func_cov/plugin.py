@@ -3,6 +3,7 @@ import importlib.util
 import inspect
 import os
 import sys
+from types import MethodType
 
 
 def import_module_from_file(file_path, package_name=None, module_name=None):
@@ -83,6 +84,23 @@ def get_classes_defined_in_module(module):
     return classes_defined_in_module
 
 
+def get_methods_defined_in_class(cls):
+    """
+    Get all functions defined in a given class. This includes methods,
+    static methods and class methods.
+
+    Args:
+        cls (type): Class for lookup
+
+    Returns:
+        List(tuple(str, o))
+    """
+    methods = inspect.getmembers(cls, inspect.isfunction)
+    class_methods = inspect.getmembers(cls, inspect.ismethod)
+
+    return methods + class_methods
+
+
 def find_packages(path):
     """
     Finds all packages in a given directory. A directory is a package if
@@ -95,7 +113,7 @@ def find_packages(path):
         List(str) absolute paths to the package
     """
     directories_in_path = [
-        os.path.join(path, d) for d in os.listdir(path) if os.path.isdir(d)
+        os.path.join(path, d) for d in os.listdir(path) if os.path.isdir(os.path.join(path, d))
     ]
 
     packages = [d for d in directories_in_path if "__init__.py" in os.listdir(d)]
@@ -115,7 +133,9 @@ def find_modules(path):
         List(str) absolute paths to the modules
     """
     modules_in_path = [
-        os.path.join(path, m) for m in os.listdir(path) if m.endswith(".py") and m != "__init__.py"
+        os.path.join(path, m)
+        for m in os.listdir(path)
+        if m.endswith(".py") and m != "__init__.py"
     ]
 
     return modules_in_path
@@ -126,17 +146,35 @@ class FunctionCallMonitor:
         self._functions = {}
         self._target_modules = []
 
-    def register_function(self, f):
-        self._functions[f] = 0
+    def register_function(self, f, parent_class=None):
+        class_name = parent_class.__name__ if parent_class is not None else None
+
+        full_name = self.get_full_function_name(f, class_name)
+        self._functions[full_name] = 0
+
+        is_classmethod = parent_class is not None and isinstance(f, MethodType)
+
+        if is_classmethod:
+            f = f.__func__
 
         @wraps(f)
         def _(*args, **kwargs):
             called_from = inspect.stack()[1].filename
-            self.record_call(f, called_from)
+            self.record_call(full_name, called_from)
 
             return f(*args, **kwargs)
 
+        if is_classmethod:
+            _ = classmethod(_)
+
         return _
+
+    @staticmethod
+    def get_full_function_name(f, class_name):
+        if class_name is None:
+            return f"{f.__module__}.{f.__name__}"
+
+        return f"{f.__module__}.{class_name}.{f.__name__}"
 
     @property
     def registered_functions_count(self):
@@ -172,8 +210,14 @@ def index_module(module):
     for f_name, f in functions:
         setattr(module, f_name, function_call_monitor.register_function(f))
 
+    for cls_name, cls in classes:
+        for f_name, f in get_methods_defined_in_class(cls):
+            setattr(cls, f_name, function_call_monitor.register_function(f, cls))
 
-def register_package(package_path):
+        setattr(module, cls_name, cls)
+
+
+def register_package(package_path, parent_package=None):
     """
     Imports package __init__ and all child modules and packages recursively
     and registers each module for function call monitoring.
@@ -182,6 +226,10 @@ def register_package(package_path):
         package_path (str): Path to package
     """
     package_name = os.path.basename(package_path)
+
+    if parent_package is not None:
+        package_name = f"{parent_package}.{package_name}"
+
     package_import_path = os.path.join(package_path, "__init__.py")
 
     package = import_module_from_file(package_import_path, module_name=package_name)
@@ -193,7 +241,7 @@ def register_package(package_path):
         index_module(module)
 
     for child_package in find_packages(package_path):
-        register_package(child_package)
+        register_package(child_package, package_name)
 
 
 def discover(root_path):
