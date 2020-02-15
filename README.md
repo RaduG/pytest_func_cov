@@ -13,7 +13,7 @@ when a discovered function is invoked.
 
 
 # Command line arguments
-By default, all packages in the pytest session path are loaded and monitor, except for
+By default, all packages in the pytest session path are loaded and monitored, except for
 those named "test" or "tests". However, pytest_func_cov does provide a command line
 argument through which a specific module in the current folder can be specified:
 
