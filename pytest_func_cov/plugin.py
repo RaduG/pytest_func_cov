@@ -113,7 +113,9 @@ def find_packages(path):
         List(str) absolute paths to the package
     """
     directories_in_path = [
-        os.path.join(path, d) for d in os.listdir(path) if os.path.isdir(os.path.join(path, d))
+        os.path.join(path, d)
+        for d in os.listdir(path)
+        if os.path.isdir(os.path.join(path, d))
     ]
 
     packages = [d for d in directories_in_path if "__init__.py" in os.listdir(d)]
