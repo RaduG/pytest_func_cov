@@ -213,7 +213,14 @@ def get_methods_defined_in_class(cls):
     methods = inspect.getmembers(cls, inspect.isfunction)
     class_methods = inspect.getmembers(cls, inspect.ismethod)
 
-    return methods + class_methods
+    functions = methods + class_methods
+
+    # Remove dunder methods
+    functions = [
+        f for f in functions if not (f[0].startswith("__") and f[0].endswith("__"))
+    ]
+
+    return functions
 
 
 def is_package(path):
