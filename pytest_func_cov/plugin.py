@@ -3,8 +3,7 @@ import os
 from .tracking import discover, function_call_monitor
 
 
-
-def pytest_addoption(parser, pluginmanager):
+def pytest_addoption(parser):
     """
     Pytest hook - register command line arguments. We want to register the
     --func_cov argument to explicitly pass the location of the package to
@@ -12,9 +11,8 @@ def pytest_addoption(parser, pluginmanager):
 
     Args:
         parser:
-        pluginmanager:
     """
-    parser.addoption("--func_cov", dest="FUNC_COV", default=None)
+    parser.addoption("--func_cov", dest="func_cov", default=None)
 
 
 def pytest_configure(config):
@@ -25,7 +23,7 @@ def pytest_configure(config):
     Args:
         config: Pytest config object
     """
-    func_cov = config.option.FUNC_COV
+    func_cov = config.option.func_cov
 
     if func_cov is not None:
         os.environ["PYTEST_FUNC_COV"] = func_cov
@@ -52,7 +50,7 @@ def pytest_sessionstart(session):
     discover(pytest_cov_path)
 
 
-def pytest_collect_file(path, parent):
+def pytest_collect_file(path):
     """
     Pytest hook - called before the collection of a file. At this point
     we need to register the current test file as a valid function call
@@ -60,12 +58,11 @@ def pytest_collect_file(path, parent):
 
     Args:
         path (str): Path to test file
-        parent: unused
     """
     function_call_monitor.register_target_module(path)
 
 
-def pytest_terminal_summary(terminalreporter, exitstatus, config):
+def pytest_terminal_summary(terminalreporter):
     """
     Pytest hook - called when the test summary is outputted. Here we
     output basic statistics of the number of functions registered and called,
@@ -73,13 +70,37 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
 
     Args:
         terminalreporter:
-        exitstatus: unused
-        config: unused
     """
     functions_found = function_call_monitor.registered_functions
     functions_called = function_call_monitor.called_functions
+    functions_not_called = function_call_monitor.uncalled_functions
+
     coverage = len(functions_called) / len(functions_found)
 
-    terminalreporter.write(f"Found {len(functions_found)} functions and methods.\n")
-    terminalreporter.write(f"Called {len(functions_called)} functions and methods: {functions_called}\n")
-    terminalreporter.write(f"Function call coverage: {round(coverage * 100, 2)}%\n")
+    # Write functions found message
+    terminalreporter.write(
+        f"Found {len(functions_found)} functions and methods:\n", bold=True
+    )
+    terminalreporter.write("\n".join(f"- {f_n}" for f_n in functions_found))
+    terminalreporter.write("\n\n")
+
+    # Write functions tested message
+    terminalreporter.write(
+        f"Called {len(functions_called)} functions and methods:\n", bold=True
+    )
+    terminalreporter.write(
+        "\n".join(f"- {f_n}" for f_n in functions_called), green=True
+    )
+    terminalreporter.write("\n\n")
+
+    # Write functions not tested message
+    # Write functions tested message
+    terminalreporter.write(
+        f"There are {len(functions_not_called)} functions and methods which were not called during testing:\n",
+        bold=True,
+        red=True,
+    )
+    terminalreporter.write(
+        "\n".join(f"- {f_n}" for f_n in functions_not_called), red=True
+    )
+    terminalreporter.write("\n\n")
