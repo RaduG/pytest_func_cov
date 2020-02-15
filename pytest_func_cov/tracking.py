@@ -84,6 +84,14 @@ class FunctionCallMonitor:
         """
         return tuple([name for name, calls in self._functions.items() if calls > 0])
 
+    @property
+    def uncalled_functions(self):
+        """
+        Returns:
+            Tuple(str) - full module names for all uncalled registered functions
+        """
+        return tuple([name for name, calls in self._functions.items() if calls == 0])
+
     def register_target_module(self, m):
         """
         Registers a module from which an eligible function call may originate.
