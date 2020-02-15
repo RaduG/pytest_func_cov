@@ -75,7 +75,7 @@ def pytest_terminal_summary(terminalreporter):
     functions_called = function_call_monitor.called_functions
     functions_not_called = function_call_monitor.uncalled_functions
 
-    coverage = len(functions_called) / len(functions_found)
+    coverage = round((len(functions_called) / len(functions_found)) * 100, 0)
 
     # Write functions found message
     terminalreporter.write(
@@ -94,7 +94,6 @@ def pytest_terminal_summary(terminalreporter):
     terminalreporter.write("\n\n")
 
     # Write functions not tested message
-    # Write functions tested message
     terminalreporter.write(
         f"There are {len(functions_not_called)} functions and methods which were not called during testing:\n",
         bold=True,
@@ -104,3 +103,6 @@ def pytest_terminal_summary(terminalreporter):
         "\n".join(f"- {f_n}" for f_n in functions_not_called), red=True
     )
     terminalreporter.write("\n\n")
+
+    # Write test coverage
+    terminalreporter.write(f"Total function coverage: {coverage}%\n", bold=True)
