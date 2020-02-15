@@ -208,6 +208,20 @@ def get_methods_defined_in_class(cls):
     return methods + class_methods
 
 
+def is_package(path):
+    """
+    Checks if a given directory is a Python package (it contains a __init__.py
+    file)
+
+    Args:
+        path (str):
+
+    Returns:
+        bool
+    """
+    return "__init__.py" in os.listdir(path)
+
+
 def find_packages(path):
     """
     Finds all packages in a given directory. A directory is a package if
@@ -225,7 +239,7 @@ def find_packages(path):
         if os.path.isdir(os.path.join(path, d))
     ]
 
-    packages = [d for d in directories_in_path if "__init__.py" in os.listdir(d)]
+    packages = [d for d in directories_in_path if is_package(d)]
 
     return packages
 
@@ -300,16 +314,21 @@ def register_package(package_path, parent_package=None):
 
 def discover(root_path):
     """
-    Finds, registers and indexes all packages in a given folder.
+    Finds, registers and indexes all packages in a given folder. If the given
+    folder is a package itself, it is also registered.
 
     Args:
         root_path (str): Lookup path
     """
-    packages = find_packages(root_path)
+    if is_package(root_path):
+        register_package(root_path)
 
-    # Filter for commonly known test folders
-    packages = [p for p in packages if os.path.basename(p) not in ["tests", "test"]]
+    else:
+        packages = find_packages(root_path)
 
-    # Register packages
-    for package in packages:
-        register_package(package)
+        # Filter for commonly known test folders
+        packages = [p for p in packages if os.path.basename(p) not in ["tests", "test"]]
+
+        # Register packages
+        for package in packages:
+            register_package(package)

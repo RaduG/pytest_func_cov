@@ -1,16 +1,55 @@
+import os
+
 from .tracking import discover, function_call_monitor
+
+
+
+def pytest_addoption(parser, pluginmanager):
+    """
+    Pytest hook - register command line arguments. We want to register the
+    --func_cov argument to explicitly pass the location of the package to
+    discover.
+
+    Args:
+        parser:
+        pluginmanager:
+    """
+    parser.addoption("--func_cov", dest="FUNC_COV", default=None)
+
+
+def pytest_configure(config):
+    """
+    Pytest hook - called after command line options have been called. Register
+    the --func_cov option in the PYTEST_FUNC_COV environment variable.
+
+    Args:
+        config: Pytest config object
+    """
+    func_cov = config.option.FUNC_COV
+
+    if func_cov is not None:
+        os.environ["PYTEST_FUNC_COV"] = func_cov
 
 
 def pytest_sessionstart(session):
     """
     Pytest hook - called when the pytest session is created. At this point,
     we need to run a full module discovery and register all functions
-    prior to initiating the collection.
+    prior to initiating the collection. If the PYTEST_FUNC_COV environment
+    variable is set, use that as the root discovery path, relative to the
+    session fspath.
 
     Args:
         session: Pytest session
     """
-    discover(session.fspath)
+    pytest_cov_path = os.getenv("PYTEST_FUNC_COV", None)
+
+    if pytest_cov_path is None:
+        pytest_cov_path = session.fspath
+    else:
+        pytest_cov_path = os.path.join(session.fspath, pytest_cov_path)
+
+    discover(pytest_cov_path)
 
 
 def pytest_collect_file(path, parent):
