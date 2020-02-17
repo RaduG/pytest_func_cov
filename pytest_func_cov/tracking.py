@@ -2,14 +2,24 @@ from functools import wraps
 import importlib.util
 import inspect
 import os
+from re import match
 import sys
 from types import MethodType
 
 
 class FunctionCallMonitor:
-    def __init__(self):
+    def __init__(self, ignore_func_names=None):
+        """
+        Args:
+            ignore_func_names (list(str)): List of regular expressions used
+                to filter out function names when selecting them for monitoring.
+                Defaults to None.
+        """
         self._functions = {}
         self._target_modules = []
+        self._ignore_func_names = (
+            ignore_func_names if ignore_func_names is not None else []
+        )
 
     def register_function(self, f, parent_class=None):
         """
@@ -23,9 +33,10 @@ class FunctionCallMonitor:
             parent_class (type): Parent class of the function if part of a
                 class; defaults to None
         """
-        # class_name = parent_class.__name__ if parent_class is not None else None
-
-        self._functions[f] = 0
+        # If this function should not be registered based on the filters
+        # return it unchanged
+        if self._should_filter_function(f):
+            return f
 
         # If function is part of a class and it is bound to it
         is_classmethod = parent_class is not None and isinstance(f, MethodType)
@@ -33,6 +44,8 @@ class FunctionCallMonitor:
         # Unwrap @classmethod
         if is_classmethod:
             f = f.__func__
+
+        self._functions[f] = 0
 
         @wraps(f)
         def _(*args, **kwargs):
@@ -98,8 +111,20 @@ class FunctionCallMonitor:
         if m in self._target_modules:
             funcs[f] = funcs[f] + 1
 
+    def _should_filter_function(self, f):
+        """
+        Checks whether a given function name should be filtered out based on
+        the ignore_func_names.
 
-function_call_monitor = FunctionCallMonitor()
+        Args:
+            f (function): Function to check
+
+        Returns:
+            True if it should be filtered, False otherwise
+        """
+        f_name = f.__name__
+
+        return any(match(pattern, f_name) for pattern in self._ignore_func_names)
 
 
 def import_module_from_file(file_path, package_name=None, module_name=None):
@@ -128,6 +153,51 @@ def import_module_from_file(file_path, package_name=None, module_name=None):
     spec.loader.exec_module(module)
 
     return module
+
+
+class ModuleIndexer:
+    def __init__(self):
+        self.modules = []
+
+    def add_package(self, path, parent_package=None, recursive=True):
+        """
+        Loads all modules in a package specified in path.
+
+        Args:
+            path (str): Path to the package folder
+            parent_package (str): Name of the parent package. Defaults to None.
+            recursive (bool): Whether to also add all packages nested inside
+                the given package. Defaults to True.
+        """
+        package_name = os.path.basename(path)
+
+        if parent_package is not None:
+            package_name = f"{parent_package}.{package_name}"
+
+        package_import_path = os.path.join(path, "__init__.py")
+
+        self.modules.append(
+            import_module_from_file(package_import_path, module_name=package_name)
+        )
+
+        for module_path in find_modules(path):
+            self.modules.append(
+                import_module_from_file(module_path, package_name=package_name)
+            )
+
+        if recursive:
+            for child_package in find_packages(path):
+                self.add_package(child_package, package_name)
+
+    def index_all(self, function_calls_monitor):
+        """
+        Register the functions inside all added modules.
+
+        Args:
+            function_calls_monitor (FunctionCallMonitor):
+        """
+        for module in self.modules:
+            index_module(module, function_calls_monitor)
 
 
 def is_defined_in_module(o, module):
@@ -259,13 +329,14 @@ def find_modules(path):
     return modules_in_path
 
 
-def index_module(module):
+def index_module(module, function_call_monitor):
     """
     Decorates all functions and classes defined in the given module
     for function call monitoring.
 
     Args:
         module (module): Module to index
+        function_call_monitor (FunctionCallMonitor):
     """
     functions = get_functions_defined_in_module(module)
     classes = get_classes_defined_in_module(module)
@@ -278,55 +349,6 @@ def index_module(module):
             setattr(cls, f_name, function_call_monitor.register_function(f, cls))
 
         setattr(module, cls_name, cls)
-
-
-def register_package(package_path, parent_package=None):
-    """
-    Imports package __init__ and all child modules and packages recursively
-    and registers each module for function call monitoring.
-
-    Args:
-        package_path (str): Path to package
-    """
-    package_name = os.path.basename(package_path)
-
-    if parent_package is not None:
-        package_name = f"{parent_package}.{package_name}"
-
-    package_import_path = os.path.join(package_path, "__init__.py")
-
-    package = import_module_from_file(package_import_path, module_name=package_name)
-
-    index_module(package)
-
-    for module_path in find_modules(package_path):
-        module = import_module_from_file(module_path, package_name=package_name)
-        index_module(module)
-
-    for child_package in find_packages(package_path):
-        register_package(child_package, package_name)
-
-
-def discover(root_path):
-    """
-    Finds, registers and indexes all packages in a given folder. If the given
-    folder is a package itself, it is also registered.
-
-    Args:
-        root_path (str): Lookup path
-    """
-    if is_package(root_path):
-        register_package(root_path)
-
-    else:
-        packages = find_packages(root_path)
-
-        # Filter for commonly known test folders
-        packages = [p for p in packages if os.path.basename(p) not in ["tests", "test"]]
-
-        # Register packages
-        for package in packages:
-            register_package(package)
 
 
 def get_full_function_name(f):
