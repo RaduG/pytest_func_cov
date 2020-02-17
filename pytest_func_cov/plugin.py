@@ -1,7 +1,7 @@
 import os
 import sys
 
-from .tracking import discover, function_call_monitor
+from .tracking import discover, function_call_monitor, get_full_function_name
 
 
 def pytest_addoption(parser):
@@ -81,9 +81,15 @@ def pytest_terminal_summary(terminalreporter):
     Args:
         terminalreporter:
     """
-    functions_found = function_call_monitor.registered_functions
-    functions_called = function_call_monitor.called_functions
-    functions_not_called = function_call_monitor.uncalled_functions
+    functions_found = [
+        get_full_function_name(f) for f in function_call_monitor.registered_functions
+    ]
+    functions_called = [
+        get_full_function_name(f) for f in function_call_monitor.called_functions
+    ]
+    functions_not_called = [
+        get_full_function_name(f) for f in function_call_monitor.uncalled_functions
+    ]
 
     coverage = round((len(functions_called) / len(functions_found)) * 100, 0)
 
