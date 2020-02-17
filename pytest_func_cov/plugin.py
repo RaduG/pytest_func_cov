@@ -1,4 +1,5 @@
 import os
+import sys
 
 from .tracking import discover, function_call_monitor
 
@@ -18,7 +19,10 @@ def pytest_addoption(parser):
 def pytest_configure(config):
     """
     Pytest hook - called after command line options have been called. Register
-    the --func_cov option in the PYTEST_FUNC_COV environment variable.
+    the --func_cov option in the PYTEST_FUNC_COV environment variable and
+    ensure that the current working directory path is in sys.path in order
+    to have consistent behaviour when invoking through pytest and
+    python -m pytest
 
     Args:
         config: Pytest config object
@@ -27,6 +31,12 @@ def pytest_configure(config):
 
     if func_cov is not None:
         os.environ["PYTEST_FUNC_COV"] = func_cov
+
+    # Add current folder to sys.path if it is not already in
+    cwd = os.getcwd()
+
+    if cwd not in sys.path:
+        sys.path.append(cwd)
 
 
 def pytest_sessionstart(session):
