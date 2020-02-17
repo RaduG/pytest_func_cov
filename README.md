@@ -1,3 +1,8 @@
+| Develop | Master | Release |
+| :------:| :------: | :------: |
+| ![Build#develop](https://github.com/RaduG/pytest_func_cov/workflows/build/badge.svg?branch=develop) | ![Build#master](https://github.com/RaduG/pytest_func_cov/workflows/build/badge.svg?branch=master)  | [![PyPI version](https://badge.fury.io/py/pytest-func-cov.svg)](https://badge.fury.io/py/pytest-func-cov) |
+
+
 # Overview
 This plugin attempts to provide a more meaningful test coverage metric for projects using pytest. The assumption is that,
 in reality, the proportion of lines of code covered by tests does not entirely reflect how
