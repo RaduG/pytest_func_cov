@@ -23,10 +23,9 @@ class FunctionCallMonitor:
             parent_class (type): Parent class of the function if part of a
                 class; defaults to None
         """
-        class_name = parent_class.__name__ if parent_class is not None else None
+        # class_name = parent_class.__name__ if parent_class is not None else None
 
-        full_name = self.get_full_function_name(f, class_name)
-        self._functions[full_name] = 0
+        self._functions[f] = 0
 
         # If function is part of a class and it is bound to it
         is_classmethod = parent_class is not None and isinstance(f, MethodType)
@@ -40,7 +39,7 @@ class FunctionCallMonitor:
             # Check the filename of the previous stack frame - that is where
             # the function call originates from
             called_from = inspect.stack()[1].filename
-            self.record_call(full_name, called_from)
+            self.record_call(f, called_from)
 
             return f(*args, **kwargs)
 
@@ -49,24 +48,6 @@ class FunctionCallMonitor:
             _ = classmethod(_)
 
         return _
-
-    @staticmethod
-    def get_full_function_name(f, class_name=None):
-        """
-        Constructs full module path for a given function.
-
-        Args:
-            f (function): Function to construct the path for
-            class_name (str): Name of the parent class, if the function
-                belongs to the class. Defaults to None.
-
-        Returns:
-            str
-        """
-        if class_name is None:
-            return f"{f.__module__}.{f.__name__}"
-
-        return f"{f.__module__}.{class_name}.{f.__name__}"
 
     @property
     def registered_functions(self):
@@ -201,8 +182,8 @@ def get_classes_defined_in_module(module):
 
 def get_methods_defined_in_class(cls):
     """
-    Get all functions defined in a given class. This includes methods,
-    static methods and class methods.
+    Get all functions defined in a given class. This includes all
+    non-inherited methods, static methods and class methods.
 
     Args:
         cls (type): Class for lookup
@@ -215,10 +196,9 @@ def get_methods_defined_in_class(cls):
 
     functions = methods + class_methods
 
-    # Remove dunder methods
-    functions = [
-        f for f in functions if not (f[0].startswith("__") and f[0].endswith("__"))
-    ]
+    # Only keep non-inherited functions
+    cls_symbols = cls.__dict__
+    functions = [f for f in functions if f[0] in cls_symbols]
 
     return functions
 
@@ -347,3 +327,16 @@ def discover(root_path):
         # Register packages
         for package in packages:
             register_package(package)
+
+
+def get_full_function_name(f):
+    """
+    Constructs full module path for a given function.
+
+    Args:
+        f (function): Function to construct the path for
+
+    Returns:
+        str
+    """
+    return f"{f.__module__}.{f.__qualname__}"
