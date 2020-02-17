@@ -1,10 +1,15 @@
-name: Build
+name: build
 on:
   pull_request:
   push:
     branches: 
       - develop
       - master
+    paths:
+      - 'pytest_func_cov/**'
+      - 'tests/**'
+      - 'setup.py'
+      - 'requirements.txt'
 jobs:
   build:
     runs-on: ubuntu-latest
