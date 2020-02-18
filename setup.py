@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name="pytest_func_cov",
     packages=["pytest_func_cov"],
-    version="0.1.1",
+    version="0.1.2",
     license="MIT",
     description="Pytest plugin for measuring function coverage",
     author="Radu Ghitescu",
