@@ -1,7 +1,7 @@
 import os
 import sys
 
-from .tracking import FunctionCallMonitor, get_full_function_name, ModuleIndexer
+from .tracking import FunctionIndexer, get_full_function_name
 
 
 def pytest_addoption(parser):
@@ -36,10 +36,9 @@ def pytest_load_initial_conftests(early_config, parser, args):
 class FuncCovPlugin:
     def __init__(self, args):
         self.args = args
-        self.function_call_monitor = FunctionCallMonitor(
+        self.indexer = FunctionIndexer(
             args.getini("ignore_func_names")
         )
-        self.module_indexer = ModuleIndexer()
 
     def pytest_sessionstart(self, session):
         """
@@ -67,9 +66,8 @@ class FuncCovPlugin:
             ]
 
         for package_path in pytest_cov_paths:
-            self.module_indexer.add_package(package_path)
+            self.indexer.index_package(package_path)
 
-        self.module_indexer.index_all(self.function_call_monitor)
 
     def pytest_collect_file(self, path):
         """
@@ -80,7 +78,7 @@ class FuncCovPlugin:
         Args:
             path (str): Path to test file
         """
-        self.function_call_monitor.register_target_module(path)
+        self.indexer.register_source_module(path)
 
     def pytest_terminal_summary(self, terminalreporter):
         """
@@ -93,15 +91,15 @@ class FuncCovPlugin:
         """
         functions_found = [
             get_full_function_name(f)
-            for f in self.function_call_monitor.registered_functions
+            for f in self.indexer.monitor.registered_functions
         ]
         functions_called = [
             get_full_function_name(f)
-            for f in self.function_call_monitor.called_functions
+            for f in self.indexer.monitor.called_functions
         ]
         functions_not_called = [
             get_full_function_name(f)
-            for f in self.function_call_monitor.uncalled_functions
+            for f in self.indexer.monitor.missed_functions
         ]
 
         coverage = round((len(functions_called) / len(functions_found)) * 100, 0)
