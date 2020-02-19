@@ -17,19 +17,11 @@ from a test function at least once. To make this check, the second stack frame i
 when a discovered function is invoked.
 
 
-# Command line arguments
-By default, all packages in the pytest session path are loaded and monitored, except for
-those named "test" or "tests". However, pytest_func_cov does provide a command line
-argument through which a specific module in the current folder can be specified:
-
-Example:
+# Usage
 ```bash
 pytest --func_cov=myproject tests/
 ```
-
-
-# Output
-Example:
+Produces a report like:
 
 ```
 Found 10 functions and methods:
@@ -60,3 +52,15 @@ There are 5 functions and methods which were not called during testing:
 
 Total function coverage: 50.0%
 ```
+
+# Configuration
+A list of function name patters to ignore can be specified in pytest.ini.
+
+Example:
+```ini
+[pytest]
+ignore_func_names = 
+    ^test_*
+    ^myfunction$
+```
+This will ignore all function names starting with "test_" and functions named "myfunction".
