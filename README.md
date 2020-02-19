@@ -1,6 +1,6 @@
-| Develop | Master | Release |
-| :------:| :------: | :------: |
-| ![Build#develop](https://github.com/RaduG/pytest_func_cov/workflows/build/badge.svg?branch=develop) | ![Build#master](https://github.com/RaduG/pytest_func_cov/workflows/build/badge.svg?branch=master)  | [![PyPI version](https://badge.fury.io/py/pytest-func-cov.svg)](https://badge.fury.io/py/pytest-func-cov) |
+| Build | Release |
+| :------:| :------: |
+| ![Build#develop](https://github.com/RaduG/pytest_func_cov/workflows/build/badge.svg?branch=develop) |  [![PyPI version](https://badge.fury.io/py/pytest-func-cov.svg)](https://badge.fury.io/py/pytest-func-cov) |
 
 
 # Overview
@@ -54,7 +54,7 @@ Total function coverage: 50.0%
 ```
 
 # Configuration
-A list of function name patters to ignore can be specified in pytest.ini.
+A list of function name patterns to ignore can be specified in pytest.ini.
 
 Example:
 ```ini
