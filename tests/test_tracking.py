@@ -29,7 +29,7 @@ def package_path():
 
 @pytest.fixture
 def non_package_path():
-    return os.path.dirname(os.path.abspath(__file__)) + "/test_non_package"
+    return os.path.dirname(os.path.abspath(__file__)) + "/test_non_package/"
 
 def test_is_package_with_package(package_path):
     expected_result = tracking.is_package(package_path)
