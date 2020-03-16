@@ -4,6 +4,8 @@ from pytest_func_cov import tracking
 
 from .test_package import classes, functions
 
+import os
+
 
 @pytest.mark.parametrize(
     "func",
