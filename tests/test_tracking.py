@@ -40,8 +40,3 @@ def test_is_package_with_non_package(non_package_path):
     expected_result = tracking.is_package(non_package_path)
 
     assert not expected_result
-
-def test_is_package_with_wrong_path():
-    expected_result = tracking.is_package("//Windows//120")
-
-    assert expected_result
