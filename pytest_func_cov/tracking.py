@@ -48,7 +48,9 @@ class FunctionCallMonitor:
             try:
                 f = f.__func__
             except AttributeError as e:
-                raise MonitoringError(f"Function {get_full_function_name(f)} not a classmethod")
+                raise MonitoringError(
+                    f"Function {get_full_function_name(f)} not a classmethod"
+                )
 
         self._functions[f] = []
 
@@ -133,7 +135,9 @@ class FunctionCallMonitor:
             try:
                 funcs[f].append((source_file, source_function))
             except KeyError:
-                raise MonitoringError(f"Function {get_full_function_name(f)} not monitored.")
+                raise MonitoringError(
+                    f"Function {get_full_function_name(f)} not monitored."
+                )
 
             return True
 
