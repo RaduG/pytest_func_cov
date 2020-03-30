@@ -2,19 +2,20 @@ import os
 import tempfile
 
 import pytest
-
 from pytest_func_cov import tracking
-from .test_package import classes, functions
+
+from .test_package.classes import SimpleClass
+from .test_package.functions import simple_function, lambda_
 
 
 @pytest.mark.parametrize(
     "func",
     [
-        functions.simple_function,
-        functions.lambda_,
-        classes.SimpleClass.simple_method,
-        classes.SimpleClass.simple_class_method,
-        classes.SimpleClass.simple_static_method,
+        simple_function,
+        lambda_,
+        SimpleClass.simple_method,
+        SimpleClass.simple_class_method,
+        SimpleClass.simple_static_method,
     ],
     ids=["function", "lambda", "method", "class method", "static method"],
 )
@@ -27,7 +28,7 @@ def test_get_full_function_name_correct_for_simple_function(func):
 @pytest.fixture
 def package_path():
     with tempfile.TemporaryDirectory() as folder:
-        with open(os.path.join(folder, "__init__.py"), "w") as f:
+        with open(os.path.join(folder, "__init__.py"), "w"):
             yield folder
 
 
@@ -43,3 +44,15 @@ def test_is_package_with_package(package_path):
 
 def test_is_package_with_non_package(non_package_path):
     assert not tracking.is_package(non_package_path)
+
+
+def test_get_methods_defined_in_class():
+    output = [m[1] for m in tracking.get_methods_defined_in_class(SimpleClass)]
+    expected = [
+        SimpleClass.__init__,
+        SimpleClass.simple_class_method,
+        SimpleClass.simple_method,
+        SimpleClass.simple_static_method,
+    ]
+    print(output, expected)
+    assert all([method in output for method in expected])
