@@ -56,3 +56,16 @@ def test_get_methods_defined_in_class():
     ]
     print(output, expected)
     assert all([method in output for method in expected])
+
+
+def test_find_packages_in_directory_without_package(non_package_path):
+    output = tracking.find_packages(non_package_path)
+    expected = []
+    print(output, expected, flush=True)
+    assert all([directory in output for directory in expected])
+
+def test_find_packages_in_directory_with_package(package_path):
+    output = tracking.find_packages(os.path.dirname(package_path))
+    expected = tracking.find_packages(os.path.dirname(package_path))
+    print(output, expected, flush=True)
+    assert all([package in output for package in expected])
