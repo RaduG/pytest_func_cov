@@ -25,14 +25,14 @@ def test_get_full_function_name_correct_for_simple_function(func):
     assert tracking.get_full_function_name(func) == expected_name
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def package_path():
     with tempfile.TemporaryDirectory() as folder:
         with open(os.path.join(folder, "__init__.py"), "w"):
             yield folder
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def non_package_path():
     with tempfile.TemporaryDirectory() as folder:
         yield folder
