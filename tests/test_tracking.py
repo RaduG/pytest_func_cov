@@ -65,7 +65,7 @@ def test_find_packages_in_directory_without_package(non_package_path):
     assert all([directory in output for directory in expected])
 
 def test_find_packages_in_directory_with_package(package_path):
-    output = tracking.find_packages(os.path.dirname(package_path))
+    output = [os.path.normpath(package_path)]
     expected = tracking.find_packages(os.path.dirname(package_path))
     print(output, expected, flush=True)
     assert all([package in output for package in expected])
