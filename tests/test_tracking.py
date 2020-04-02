@@ -59,18 +59,15 @@ def test_get_methods_defined_in_class():
         SimpleClass.simple_method,
         SimpleClass.simple_static_method,
     ]
-    print(output, expected)
     assert all([method in output for method in expected])
 
 
 def test_find_packages_in_directory_without_package(non_package_path):
     output = tracking.find_packages(non_package_path)
     expected = []
-    print(output, expected, flush=True)
     assert all([directory in output for directory in expected])
 
 def test_find_packages_in_directory_with_package(directory_with_packages):
     output = tracking.find_packages(os.path.abspath(os.path.join(directory_with_packages, os.pardir)))
     expected = [os.path.abspath(directory_with_packages)]
-    print(output, expected, flush=True)
     assert all([directory in output for directory in expected])
