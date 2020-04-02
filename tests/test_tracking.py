@@ -25,18 +25,23 @@ def test_get_full_function_name_correct_for_simple_function(func):
     assert tracking.get_full_function_name(func) == expected_name
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def package_path():
     with tempfile.TemporaryDirectory() as folder:
         with open(os.path.join(folder, "__init__.py"), "w"):
             yield folder
-
 
 @pytest.fixture(scope="module")
 def non_package_path():
     with tempfile.TemporaryDirectory() as folder:
         yield folder
 
+@pytest.fixture
+def directory_with_packages():
+    with tempfile.TemporaryDirectory() as folder:
+        temp_package = tempfile.mkdtemp(dir=folder)
+        with open(os.path.join(temp_package, "__init__.py"), "w"):
+            yield temp_package
 
 def test_is_package_with_package(package_path):
     assert tracking.is_package(package_path)
@@ -64,8 +69,8 @@ def test_find_packages_in_directory_without_package(non_package_path):
     print(output, expected, flush=True)
     assert all([directory in output for directory in expected])
 
-def test_find_packages_in_directory_with_package(package_path):
-    output = [os.path.normpath(package_path)]
-    expected = tracking.find_packages(os.path.dirname(package_path))
+def test_find_packages_in_directory_with_package(directory_with_packages):
+    output = tracking.find_packages(os.path.abspath(os.path.join(directory_with_packages, os.pardir)))
+    expected = [os.path.abspath(directory_with_packages)]
     print(output, expected, flush=True)
-    assert all([package in output for package in expected])
+    assert all([directory in output for directory in expected])
