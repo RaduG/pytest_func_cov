@@ -41,10 +41,17 @@ def non_package_path():
 
 @pytest.fixture
 def directory_with_packages():
-    with tempfile.TemporaryDirectory() as folder:
-        temp_package = tempfile.mkdtemp(dir=folder)
-        with open(os.path.join(temp_package, "__init__.py"), "w"):
-            yield temp_package
+    """
+    Returns
+        tuple(str, list(str)): First element is the absolute path to the root folder,
+            the second element is the list of expected package names
+    """
+    with tempfile.TemporaryDirectory() as root_folder:
+        with tempfile.TemporaryDirectory(
+            prefix=f"{os.path.basename(root_folder)}/"
+        ) as package_folder:
+            with open(os.path.join(package_folder, "__init__.py"), "w"):
+                yield root_folder, [package_folder]
 
 
 def test_is_package_with_package(package_path):
@@ -63,44 +70,53 @@ def test_get_methods_defined_in_class():
         SimpleClass.simple_method,
         SimpleClass.simple_static_method,
     ]
-    print(output, expected, flush=True)
-    assert all([method in output for method in expected])
+    assert len(output) == len(expected) and all(
+        [method in output for method in expected]
+    )
 
 
 def test_find_packages_in_directory_without_package(non_package_path):
-    output = tracking.find_packages(non_package_path)
-    expected = []
-    assert all([directory in output for directory in expected])
+    packages = tracking.find_packages(non_package_path)
+
+    assert packages == []
 
 
 def test_find_packages_in_directory_with_package(directory_with_packages):
-    output = tracking.find_packages(
-        os.path.abspath(os.path.join(directory_with_packages, os.pardir))
+    root_directory, expected = directory_with_packages
+
+    output = tracking.find_packages(root_directory)
+
+    assert len(output) == len(expected) and all(
+        [package in output for package in expected]
     )
-    expected = [os.path.abspath(directory_with_packages)]
-    assert all([directory in output for directory in expected])
-
-
-def test_find_modules_in_directory_without_modules(non_package_path):
-    output = tracking.find_packages(non_package_path)
-    expected = []
-    assert all([module in output for module in expected])
 
 
 @pytest.fixture
 def directory_with_modules():
+    """
+    Returns
+        tuple(str, list(str)): First element is the absolute path to the root folder,
+            the second element is the list of expected module names
+    """
     with tempfile.TemporaryDirectory() as folder:
-        with open(os.path.join(folder, "ghita.py"), "w"):
-            yield folder
+        with tempfile.NamedTemporaryFile(
+            prefix=f"{os.path.basename(folder)}/", suffix=".py"
+        ) as f:
+            yield folder, [f.name]
+
+
+def test_find_modules_in_directory_without_modules(non_package_path):
+    output = tracking.find_packages(non_package_path)
+    assert output == []
 
 
 def test_find_module_in_directory_with_modules(directory_with_modules):
-    output = tracking.find_modules(directory_with_modules)
-    expected = [
-        os.path.join(directory_with_modules, file)
-        for file in os.listdir(directory_with_modules)
-    ]
-    assert all([module in output for module in expected])
+    directory, expected = directory_with_modules
+    output = tracking.find_modules(directory)
+
+    assert len(output) == len(expected) and all(
+        [module in output for module in expected]
+    )
 
 
 def test_get_functions_defined_in_module():
