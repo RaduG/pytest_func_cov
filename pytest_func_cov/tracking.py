@@ -1,3 +1,4 @@
+from collections import defaultdict
 from functools import wraps
 import importlib.util
 import inspect
@@ -25,7 +26,7 @@ class MonitoringError(Exception):
 
 class FunctionCallMonitor:
     def __init__(self):
-        self._functions = {}
+        self._modules = defaultdict(lambda: {})
         self._target_modules = []
 
     def register_function(self, f, parent_class=None):
@@ -36,21 +37,27 @@ class FunctionCallMonitor:
         functionality.
 
         Args:
-            f (function): Function to track
-            parent_class (type): Parent class of the function if part of a
+            f (FunctionType): Function to track
+            parent_class (Type): Parent class of the function if part of a
                 class; defaults to None
+        
+        Raises:
+            MonitoringError: if f seems to be a classmethod but it does not have
+                an __func__ attribute holding the wrapped method.
         """
         # If function is part of a class and it is bound to it
-        is_classmethod = parent_class is not None and isinstance(f, MethodType)
+        is_classmethod = isinstance(f, MethodType)
 
         # Unwrap @classmethod
         if is_classmethod:
             try:
                 f = f.__func__
             except AttributeError as e:
-                raise MonitoringError(f"Function {get_full_function_name(f)} not a classmethod")
+                raise MonitoringError(
+                    f"Function {get_full_function_name(f)} not a classmethod"
+                )
 
-        self._functions[f] = []
+        self._modules[f.__module__][f] = []
 
         @wraps(f)
         def _(*args, **kwargs):
@@ -73,37 +80,43 @@ class FunctionCallMonitor:
     def registered_functions(self):
         """
         Returns:
-            Tuple(function) - all registered functions
+            Tuple[Tuple[str, Tuple[FunctionType, ...]], ...]: all registered
+            functions, grouped by module
         """
-        return tuple(self._functions.keys())
+        return tuple(
+            (module_name, tuple(functions.keys()))
+            for module_name, functions in self._modules.items()
+        )
 
     @property
     def called_functions(self):
         """
         Returns:
-            Tuple(function) - all called registered functions
+            Tuple[Tuple[str, Tuple[FunctionType, ...]], ...]: all called registered 
+                functions, grouped by module
         """
         return tuple(
-            [function for function, calls in self._functions.items() if len(calls) > 0]
+            (
+                module_name,
+                tuple(f for f in functions if len(self._modules[module_name][f]) > 0),
+            )
+            for module_name, functions in self.registered_functions
         )
 
     @property
     def missed_functions(self):
         """
         Returns:
-            Tuple(function) - all missed registered functions
+            Tuple[Tuple[str, Tuple[FunctionType, ...]], ...]: all missed registered
+                functions, grouped by module
         """
         return tuple(
-            [function for function, calls in self._functions.items() if len(calls) == 0]
+            (
+                module_name,
+                tuple(f for f in functions if len(self._modules[module_name][f]) == 0),
+            )
+            for module_name, functions in self.registered_functions
         )
-
-    @property
-    def tracking(self):
-        """
-        Returns:
-            Dict(func, tuple(tuple(str, str))) - complete tracking information
-        """
-        return {f: tuple(v) for f, v in self._functions.items()}
 
     def register_target_module(self, m):
         """
@@ -119,21 +132,22 @@ class FunctionCallMonitor:
         Records a function call if the originating module is being tracked.
 
         Args:
-            f (str): Full module name for the invoked function
+            f (Callable): Invoked function
             source_file (str): Absolute file path to the module from where the call
                 originates
             source_function (str): Name of the function from where the call
                 originates
+        
         Returns:
-            True if the call was recorded, False otherwise.
+            bool: True if the call was recorded, False otherwise.
         """
-        funcs = self._functions
-
         if source_file in self._target_modules:
             try:
-                funcs[f].append((source_file, source_function))
+                self._modules[f.__module__][f].append((source_file, source_function))
             except KeyError:
-                raise MonitoringError(f"Function {get_full_function_name(f)} not monitored.")
+                raise MonitoringError(
+                    f"Function {get_full_function_name(f)} not monitored."
+                )
 
             return True
 
@@ -144,38 +158,17 @@ class ModuleLoader:
     def __init__(self):
         self._modules = {}
 
-    def load_from_package(self, path, parent_package=None):
+    def load_from_package(self, path):
         """
         Recursively load all modules in a package specified in path.
 
         Args:
             path (str): Path to the package folder
-            parent_package (str): Name of the parent package. Defaults to None.
         """
-        package_name = os.path.basename(path)
+        for module_path, module_name in find_modules(path):
+            module = import_module_from_file(module_name, module_path)
 
-        if parent_package is not None:
-            package_name = f"{parent_package}.{package_name}"
-
-        # Register package module
-        package_import_path = os.path.join(path, "__init__.py")
-        module_name, module = import_module_from_file(
-            package_import_path, module_name=package_name
-        )
-        self._modules[module_name] = module
-
-        # Register modules in path
-        for module_path in find_modules(path):
-            module_name, module = import_module_from_file(
-                module_path, package_name=package_name
-            )
             self._modules[module_name] = module
-
-        for package_path in find_packages(path):
-            self.load_from_package(package_path, package_name)
-
-    def __contains__(self, item):
-        return item in self._modules
 
     def __iter__(self):
         return iter(self._modules.items())
@@ -185,12 +178,10 @@ class FunctionIndexer:
     def __init__(self, ignore_func_names=None):
         """
         Args:
-            ignore_func_names (list(str)): Function name patterns to
-                ignore. Defaults to none
+            ignore_func_names (List[str]): Function name patterns to
+                ignore. Defaults to None
         """
-        self._ignore_func_names = (
-            ignore_func_names if ignore_func_names is not None else []
-        )
+        self._ignore_func_names = ignore_func_names or []
 
         # Compile regular expressions
         self._func_names_rgx = [
@@ -204,11 +195,8 @@ class FunctionIndexer:
     def index_package(self, package_path):
         """
         Args:
-            package_path(str): Path to package
+            package_path (str): Path to package
         """
-        if not is_package(package_path):
-            raise IndexingError(f"Path {package_path} is not a package")
-
         self._loader.load_from_package(package_path)
 
         for module_name, module in self._loader:
@@ -229,47 +217,54 @@ class FunctionIndexer:
         Checks if the given function matches any of the filters.
 
         Args:
-            f_name(str): Name of the function
+            f_name (str): Name of the function
 
         Returns:
             bool
         """
-        return any(rgx.match(f_name) is not None for rgx in self._func_names_rgx)
+        return any(rgx.search(f_name) is not None for rgx in self._func_names_rgx)
 
     def register_source_module(self, module_name):
+        """
+        Registers a module by name from which function calls are considered
+        eligible for tracking.
+
+        Args:
+            module_name (str):
+        """
         self._monitor.register_target_module(module_name)
 
     @property
     def monitor(self):
+        """
+        Returns:
+            FunctionCallMonitor
+        """
         return self._monitor
 
 
-def import_module_from_file(file_path, package_name=None, module_name=None):
+def import_module_from_file(module_name, file_path):
     """
-    Imports module from a given file path. If no package name is given, it is
-    treated as a base package.
+    Imports module from a given file path under a given module name. If the module
+    exists the function returns the module object from sys.modules.
 
     Args:
+        module_name (str): Full qualified name of the module.
+            Example: mypackage.mymodule
         file_path (str): Path to module, assumed to be a ".py" file
-        package_name (str): Name of the parent package, defaults to None
-        module_name (str): Name of the module, defaults to None. If not set,
-            the name of the file excluding the .py extension is used
 
     Returns:
-        Tuple(str, module): qualified module name, module
+        ModuleType
     """
-    if module_name is None:
-        module_name = os.path.basename(file_path).rstrip(".py")
+    if module_name in sys.modules:
+        module = sys.modules[module_name]
+    else:
+        spec = importlib.util.spec_from_file_location(module_name, file_path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
 
-    if package_name is not None:
-        module_name = f"{package_name}.{module_name}"
-
-    spec = importlib.util.spec_from_file_location(module_name, file_path)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-
-    return module_name, module
+    return module
 
 
 def is_defined_in_module(o, module):
@@ -277,11 +272,11 @@ def is_defined_in_module(o, module):
     Checks if an object is defined in a given module and not imported.
 
     Args:
-        o (object): Object to check
-        module (module): Module
+        o (Type): Object to check
+        module (ModuleType): Module
 
     Returns:
-        True or False
+        bool
     """
     return o.__module__ == module.__name__
 
@@ -291,10 +286,10 @@ def get_functions_defined_in_module(module):
     Get all the functions defined in a given module.
 
     Args:
-        module (module): Module for lookup
+        module (ModuleType): Module for lookup
 
     Returns:
-        List(tuple(str, o))
+        List[Tuple[str, FunctionType]]
     """
     all_functions = inspect.getmembers(module, inspect.isfunction)
     functions_defined_in_module = [
@@ -309,10 +304,10 @@ def get_classes_defined_in_module(module):
     Get all the classes defined in a given module.
 
     Args:
-        module (module): Module for lookup
+        module (ModuleType): Module for lookup
 
     Returns:
-        List(tuple(str, o))
+        List[Tuple[str, Type]]
     """
     all_classes = inspect.getmembers(module, inspect.isclass)
     classes_defined_in_module = [
@@ -328,10 +323,10 @@ def get_methods_defined_in_class(cls):
     non-inherited methods, static methods and class methods.
 
     Args:
-        cls (type): Class for lookup
+        cls (Type): Class for lookup
 
     Returns:
-        List(tuple(str, o))
+        List[Tuple[str, Union[FunctionType, MethodType]]]
     """
     methods = inspect.getmembers(cls, inspect.isfunction)
     class_methods = inspect.getmembers(cls, inspect.ismethod)
@@ -345,82 +340,38 @@ def get_methods_defined_in_class(cls):
     return functions
 
 
-def is_package(path):
+def find_modules(path):
     """
-    Checks if a given directory is a Python package (it contains a __init__.py
-    file)
+    Discover all Python module files in a path. Uses os.walk to recursively traverse 
+    all the nested directories but does not follow symlinks. Returns a generator 
+    of 2-tuples, (absolute_file_path, absolute_module_name).
 
     Args:
         path (str):
-
+    
     Returns:
-        bool
+        Generator[Tuple[str, str], None, None]
     """
-    return "__init__.py" in os.listdir(path)
+    root_path = os.path.dirname(path)
+    for dir_path, _, file_names in os.walk(path):
+        package_name = dir_path[len(root_path) + 1 :].replace(os.path.sep, ".")
 
+        for file_name in file_names:
+            # We are only interested in .py files
+            if not file_name.endswith(".py"):
+                continue
 
-def find_packages(path):
-    """
-    Finds all packages in a given directory. A directory is a package if
-    it contains a file named __init__.py.
+            # Get the absolute path of the file
+            absolute_path = os.path.join(dir_path, file_name)
+            module_name = file_name[:-3]
 
-    Args:
-        path (str): Base lookup directory
+            # If the module name is __init__, then it should match the package_name
+            if module_name == "__init__":
+                absolute_module_name = package_name
+            else:
+                absolute_module_name = f"{package_name}.{module_name}"
 
-    Returns:
-        List(str) absolute paths to the package
-    """
-    directories_in_path = [
-        os.path.join(path, d)
-        for d in os.listdir(path)
-        if os.path.isdir(os.path.join(path, d))
-    ]
-
-    packages = [d for d in directories_in_path if is_package(d)]
-
-    return packages
-
-
-def find_modules(path):
-    """
-    Finds all modules in a given directory. A file is a module if it has a
-    .py extension and is not named __init__.py.
-
-    Args:
-        path (str): Base lookup directory
-
-    Returns:
-        List(str) absolute paths to the modules
-    """
-    modules_in_path = [
-        os.path.join(path, m)
-        for m in os.listdir(path)
-        if m.endswith(".py") and m != "__init__.py"
-    ]
-
-    return modules_in_path
-
-
-def index_module(module, function_call_monitor):
-    """
-    Decorates all functions and classes defined in the given module
-    for function call monitoring.
-
-    Args:
-        module (module): Module to index
-        function_call_monitor (FunctionCallMonitor):
-    """
-    functions = get_functions_defined_in_module(module)
-    classes = get_classes_defined_in_module(module)
-
-    for f_name, f in functions:
-        setattr(module, f_name, function_call_monitor.register_function(f))
-
-    for cls_name, cls in classes:
-        for f_name, f in get_methods_defined_in_class(cls):
-            setattr(cls, f_name, function_call_monitor.register_function(f, cls))
-
-        setattr(module, cls_name, cls)
+            yield (absolute_path, absolute_module_name)
 
 
 def get_full_function_name(f):

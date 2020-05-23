@@ -24,33 +24,31 @@ pytest --func_cov=myproject tests/
 Produces a report like:
 
 ```
-Found 10 functions and methods:
-- project.functions.calculate_mean
-- project.functions.calculate_statistics
-- project.functions.calculate_stdev
-- project.utilities.utils.some_function
-- project.utilities.utils.SomeClass.__init__
-- project.utilities.utils.SomeClass.a_eq_b
-- project.utilities.utils.SomeClass.a_gt_b
-- project.utilities.utils.SomeClass.greeting
-- project.utilities.utils.SomeClass.sum
-- project.utilities.utils.SomeClass.get_name
+--------------------pytest_func_cov-----------
+Name                   Funcs   Miss     Cover
+----------------------------------------------
+myproject/module1.py       7      5       28% 
+myproject/module2.py      10      3       70%
+----------------------------------------------
+TOTAL                     17      8       47%   
+```
 
-Called 5 functions and methods:
-- project.functions.calculate_statistics
-- project.utilities.utils.some_function
-- project.utilities.utils.SomeClass.__init__
-- project.utilities.utils.SomeClass.sum
-- project.utilities.utils.SomeClass.get_name
+Similar to pytest-cov, you can use the ```--func_cov_report``` argument to configure the output. At the moment, the only
+supported option is ```term-missing```, which adds another column to the output which lists all untested functions.
 
-There are 5 functions and methods which were not called during testing:
-- project.functions.calculate_mean
-- project.functions.calculate_stdev
-- project.utilities.utils.SomeClass.a_eq_b
-- project.utilities.utils.SomeClass.a_gt_b
-- project.utilities.utils.SomeClass.greeting
+```bash
+pytest --func_cov=myproject --func_cov_report=term-missing tests/
+```
+Produces a report like:
 
-Total function coverage: 50.0%
+```
+--------------------pytest_func_cov--------------------
+Name                   Funcs   Miss     Cover   Missing
+-------------------------------------------------------
+myproject/module1.py       7      5       28%   func1, func2, MyClass.method, MyClass.static_method, MyClass.class_method
+myproject/module2.py      10      3       70%   func3, func4, <lambda>
+-------------------------------------------------------
+TOTAL                     17      8       47%   
 ```
 
 # Configuration
