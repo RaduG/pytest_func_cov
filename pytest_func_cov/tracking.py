@@ -356,7 +356,7 @@ def find_modules(path):
     for dir_path, _, file_names in os.walk(path):
         package_name = dir_path[len(root_path) + 1 :].replace(os.path.sep, ".")
 
-        for file_name in file_names:
+        for file_name in sorted(file_names):
             # We are only interested in .py files
             if not file_name.endswith(".py"):
                 continue
