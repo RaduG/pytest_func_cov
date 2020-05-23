@@ -5,9 +5,9 @@ import tempfile
 import pytest
 from pytest_func_cov import tracking
 
-from test_package.classes import SimpleClass
-from test_package.functions import simple_function, lambda_
-from test_package import functions
+from .test_package.classes import SimpleClass
+from .test_package.functions import simple_function, lambda_
+from .test_package import functions
 
 
 def create_files(*files):
