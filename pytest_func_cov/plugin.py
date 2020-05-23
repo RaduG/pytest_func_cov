@@ -23,6 +23,15 @@ def pytest_addoption(parser):
         nargs="?",
         const=True,
     )
+    group.addoption(
+        "--func_cov_report",
+        dest="func_cov_report",
+        action="append",
+        default=[],
+        metavar="SOURCE",
+        nargs="?",
+        const=True,
+    )
 
     parser.addini("ignore_func_names", "function names to ignore", "linelist", [])
 
@@ -36,9 +45,7 @@ def pytest_load_initial_conftests(early_config, parser, args):
 class FuncCovPlugin:
     def __init__(self, args):
         self.args = args
-        self.indexer = FunctionIndexer(
-            args.getini("ignore_func_names")
-        )
+        self.indexer = FunctionIndexer(args.getini("ignore_func_names"))
 
     def pytest_sessionstart(self, session):
         """
@@ -62,12 +69,12 @@ class FuncCovPlugin:
             pytest_cov_paths = [session.fspath]
         else:
             pytest_cov_paths = [
-                os.path.join(session.fspath, path) for path in pytest_cov_paths
+                os.path.join(session.fspath, path.rstrip("/\\"))
+                for path in pytest_cov_paths
             ]
 
         for package_path in pytest_cov_paths:
             self.indexer.index_package(package_path)
-
 
     def pytest_collect_file(self, path):
         """
@@ -78,7 +85,7 @@ class FuncCovPlugin:
         Args:
             path (str): Path to test file
         """
-        self.indexer.register_source_module(path)
+        self.indexer.register_source_module(str(path))
 
     def pytest_terminal_summary(self, terminalreporter):
         """
@@ -89,47 +96,60 @@ class FuncCovPlugin:
         Args:
             terminalreporter:
         """
-        functions_found = [
-            get_full_function_name(f)
-            for f in self.indexer.monitor.registered_functions
-        ]
-        functions_called = [
-            get_full_function_name(f)
-            for f in self.indexer.monitor.called_functions
-        ]
-        functions_not_called = [
-            get_full_function_name(f)
-            for f in self.indexer.monitor.missed_functions
-        ]
+        output_options = self.args.known_args_namespace.func_cov_report
+        include_missing = "term-missing" in output_options
 
-        coverage = round((len(functions_called) / len(functions_found)) * 100, 0)
+        tr = terminalreporter
+        cwd = os.getcwd()
 
-        # Write functions found message
-        terminalreporter.write(
-            f"Found {len(functions_found)} functions and methods:\n", bold=True
-        )
-        terminalreporter.write("\n".join(f"- {f_n}" for f_n in functions_found))
-        terminalreporter.write("\n\n")
+        found = self.indexer.monitor.registered_functions
+        called = self.indexer.monitor.called_functions
+        missed = self.indexer.monitor.missed_functions
 
-        # Write functions tested message
-        terminalreporter.write(
-            f"Called {len(functions_called)} functions and methods:\n", bold=True
-        )
-        terminalreporter.write(
-            "\n".join(f"- {f_n}" for f_n in functions_called), green=True
-        )
-        terminalreporter.write("\n\n")
+        module_paths = [sys.modules[m].__file__[len(cwd) + 1 :] for m, _ in found]
+        max_name_len = max([len(mp) for mp in module_paths] + [5])
 
-        # Write functions not tested message
-        terminalreporter.write(
-            f"There are {len(functions_not_called)} functions and methods which were not called during testing:\n",
-            bold=True,
-            red=True,
-        )
-        terminalreporter.write(
-            "\n".join(f"- {f_n}" for f_n in functions_not_called), red=True
-        )
-        terminalreporter.write("\n\n")
+        fmt_name = "%%- %ds  " % max_name_len
+        header = (fmt_name % "Name") + " Funcs   Miss" + "%*s" % (10, "Cover")
 
-        # Write test coverage
-        terminalreporter.write(f"Total function coverage: {coverage}%\n", bold=True)
+        if include_missing:
+            header += "%*s" % (10, "Missing")
+
+        fmt_coverage = fmt_name + "%6d %6d" + "%%%ds%%%%" % (9,)
+        if include_missing:
+            fmt_coverage += "   %s"
+
+        msg = "pytest_func_cov"
+        tr.write("-" * 20 + msg + "-" * 20 + "\n")
+        tr.write(header + "\n")
+        tr.write("-" * len(header) + "\n")
+
+        total_funcs = 0
+        total_miss = 0
+
+        for i, mp in enumerate(module_paths):
+            funcs = len(found[i][1])
+            miss = len(missed[i][1])
+            cover = int(((funcs - miss) / funcs) * 100)
+
+            total_funcs += funcs
+            total_miss += miss
+
+            args = (mp, funcs, miss, cover)
+
+            if include_missing:
+                args += (", ".join([f.__qualname__ for f in missed[i][1]]),)
+
+            tr.write(fmt_coverage % args)
+            tr.write("\n")
+
+        tr.write("-" * len(header) + "\n")
+
+        total_cover = int(((total_funcs - total_miss) / total_funcs) * 100)
+
+        args = ("TOTAL", total_funcs, total_miss, total_cover)
+
+        if include_missing:
+            args += ("",)
+
+        tr.write(fmt_coverage % args + "\n")
