@@ -70,6 +70,8 @@ class FunctionCallMonitor:
 
             return f(*args, **kwargs)
 
+        _.__signature__ = inspect.signature(f)
+
         # Re-wrap @classmethod
         if is_classmethod:
             _ = classmethod(_)
