@@ -10,7 +10,7 @@ with open(os.path.join(this_directory, "README.md"), "r") as f:
 setup(
     name="pytest_func_cov",
     packages=["pytest_func_cov"],
-    version="0.2.1",
+    version="0.2.2",
     license="MIT",
     description="Pytest plugin for measuring function coverage",
     long_description=long_description,
