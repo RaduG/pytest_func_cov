@@ -145,7 +145,10 @@ class FuncCovPlugin:
 
         tr.write("-" * len(header) + "\n")
 
-        total_cover = int(((total_funcs - total_miss) / total_funcs) * 100)
+        if total_funcs != 0:
+            total_cover = int(((total_funcs - total_miss) / total_funcs) * 100)
+        else:
+            total_cover = 0
 
         args = ("TOTAL", total_funcs, total_miss, total_cover)
 
