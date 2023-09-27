@@ -40,7 +40,7 @@ class FunctionCallMonitor:
             f (FunctionType): Function to track
             parent_class (Type): Parent class of the function if part of a
                 class; defaults to None
-        
+
         Raises:
             MonitoringError: if f seems to be a classmethod but it does not have
                 an __func__ attribute holding the wrapped method.
@@ -94,7 +94,7 @@ class FunctionCallMonitor:
     def called_functions(self):
         """
         Returns:
-            Tuple[Tuple[str, Tuple[FunctionType, ...]], ...]: all called registered 
+            Tuple[Tuple[str, Tuple[FunctionType, ...]], ...]: all called registered
                 functions, grouped by module
         """
         return tuple(
@@ -139,7 +139,7 @@ class FunctionCallMonitor:
                 originates
             source_function (str): Name of the function from where the call
                 originates
-        
+
         Returns:
             bool: True if the call was recorded, False otherwise.
         """
@@ -344,13 +344,13 @@ def get_methods_defined_in_class(cls):
 
 def find_modules(path):
     """
-    Discover all Python module files in a path. Uses os.walk to recursively traverse 
-    all the nested directories but does not follow symlinks. Returns a generator 
+    Discover all Python module files in a path. Uses os.walk to recursively traverse
+    all the nested directories but does not follow symlinks. Returns a generator
     of 2-tuples, (absolute_file_path, absolute_module_name).
 
     Args:
         path (str):
-    
+
     Returns:
         Generator[Tuple[str, str], None, None]
     """

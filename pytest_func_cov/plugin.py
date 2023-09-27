@@ -100,7 +100,7 @@ class FuncCovPlugin:
         output_options = self.args.known_args_namespace.func_cov_report
         include_missing = "term-missing" in output_options
         include_json = "json" in output_options
-        
+
         tr = terminalreporter
         cwd = os.getcwd()
 
@@ -154,10 +154,10 @@ class FuncCovPlugin:
 
         args = ("TOTAL", total_funcs, total_miss, total_cover)
         if include_json:
-            report_data={
-                "total_funcs":total_funcs,
-                "total_miss":total_miss,
-                "total_cover":total_cover
+            report_data = {
+                "total_funcs": total_funcs,
+                "total_miss": total_miss,
+                "total_cover": total_cover,
             }
             with open("func_report.json", "w") as json_file:
                 json.dump(report_data, json_file, indent=4)
