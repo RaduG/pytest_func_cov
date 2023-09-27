@@ -33,15 +33,6 @@ def pytest_addoption(parser):
         nargs="?",
         const=True,
     )
-    group.addoption(
-        "--func_json",
-        dest="func_json",
-        action="append",
-        default=[],
-        metavar="SOURCE",
-        nargs="?",
-        help="Get Func Coverage in JSON"
-    )
 
     parser.addini("ignore_func_names", "function names to ignore", "linelist", [])
 
@@ -108,7 +99,8 @@ class FuncCovPlugin:
         """
         output_options = self.args.known_args_namespace.func_cov_report
         include_missing = "term-missing" in output_options
-
+        include_json = "json" in output_options
+        
         tr = terminalreporter
         cwd = os.getcwd()
 
@@ -161,7 +153,7 @@ class FuncCovPlugin:
             total_cover = 0
 
         args = ("TOTAL", total_funcs, total_miss, total_cover)
-        if self.args.known_args_namespace.func_json:
+        if include_json:
             report_data={
                 "total_funcs":total_funcs,
                 "total_miss":total_miss,
