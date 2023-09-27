@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 
 from .tracking import FunctionIndexer, get_full_function_name
 
@@ -31,6 +32,15 @@ def pytest_addoption(parser):
         metavar="SOURCE",
         nargs="?",
         const=True,
+    )
+    group.addoption(
+        "--func_json",
+        dest="func_json",
+        action="append",
+        default=[],
+        metavar="SOURCE",
+        nargs="?",
+        help="Get Func Coverage in JSON"
     )
 
     parser.addini("ignore_func_names", "function names to ignore", "linelist", [])
@@ -151,7 +161,14 @@ class FuncCovPlugin:
             total_cover = 0
 
         args = ("TOTAL", total_funcs, total_miss, total_cover)
-
+        if self.args.known_args_namespace.func_json:
+            report_data={
+                "total_funcs":total_funcs,
+                "total_miss":total_miss,
+                "total_cover":total_cover
+            }
+            with open("func_report.json", "w") as json_file:
+                json.dump(report_data, json_file, indent=4)
         if include_missing:
             args += ("",)
 
