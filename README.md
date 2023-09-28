@@ -50,7 +50,10 @@ myproject/module2.py      10      3       70%   func3, func4, <lambda>
 -------------------------------------------------------
 TOTAL                     17      8       47%   
 ```
-
+Also ```json``` option can be used with ```--func_cov_report```. To get the output in a JSON file
+```bash
+pytest --func_cov=myproject --func_cov_report=json
+```
 # Configuration
 A list of function name patterns to ignore can be specified in pytest.ini.
 
@@ -62,3 +65,11 @@ ignore_func_names =
     ^myfunction$
 ```
 This will ignore all function names starting with "test_" and functions named "myfunction".
+
+You can specify the directory to save the function coverage report.
+
+Example
+```ini
+[pytest]
+json_path = public
+```
