@@ -99,7 +99,7 @@ def nested_package_directory():
     Returns
         Tuple[str, Tuple[Tuple[str, str], ...]]: First element is the absolute path
             to the created directory, and the second is a tuple of tuples, where the first
-            element is the absolute path to a .py file, and the second one is the name under 
+            element is the absolute path to a .py file, and the second one is the name under
             which is should be imported.
     """
     with tempfile.TemporaryDirectory() as package_folder:
