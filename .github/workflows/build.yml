@@ -1,8 +1,8 @@
 name: build
-
 on:
+  pull_request:
   push:
-    branches:
+    branches: 
       - develop
       - master
     paths:
@@ -10,7 +10,6 @@ on:
       - 'tests/**'
       - 'setup.py'
       - 'requirements.txt'
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -39,4 +38,3 @@ jobs:
         pip install pytest
         python setup.py develop
         pytest
-
