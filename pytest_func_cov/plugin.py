@@ -1,6 +1,6 @@
 import os
 import sys
-
+import json
 from .tracking import FunctionIndexer, get_full_function_name
 
 
@@ -34,6 +34,7 @@ def pytest_addoption(parser):
     )
 
     parser.addini("ignore_func_names", "function names to ignore", "linelist", [])
+    parser.addini("json_path", "path for saving json file", "linelist", []) 
 
 
 def pytest_load_initial_conftests(early_config, parser, args):
@@ -46,6 +47,7 @@ class FuncCovPlugin:
     def __init__(self, args):
         self.args = args
         self.indexer = FunctionIndexer(args.getini("ignore_func_names"))
+        self.json_path = args.getini("json_path")
 
     def pytest_sessionstart(self, session):
         """
@@ -98,6 +100,7 @@ class FuncCovPlugin:
         """
         output_options = self.args.known_args_namespace.func_cov_report
         include_missing = "term-missing" in output_options
+        include_json = "json" in output_options
 
         tr = terminalreporter
         cwd = os.getcwd()
@@ -151,6 +154,22 @@ class FuncCovPlugin:
             total_cover = 0
 
         args = ("TOTAL", total_funcs, total_miss, total_cover)
+
+        if include_json:
+            report_data = {
+                "total_funcs": total_funcs,
+                "total_miss": total_miss,
+                "total_cover": total_cover,
+            }
+
+            try:
+                file_path = os.path.join(self.json_path[0], "func_report.json")
+                os.makedirs(self.json_path[0], exist_ok=True)
+                with open(file_path, "w") as json_file:
+                    json.dump(report_data, json_file, indent=4)
+            except IndexError:
+                with open("func_report.json", "w") as json_file:
+                    json.dump(report_data, json_file, indent=4)
 
         if include_missing:
             args += ("",)
